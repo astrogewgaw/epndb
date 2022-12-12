@@ -1,19 +1,20 @@
 import re
 import math
+import attrs
 import unyt as u
 import numpy as np
 
-from bs4 import Tag
-from enum import Enum
-from typing import List
-from attrs import define
 from bs4 import BeautifulSoup
 from datetime import timedelta
+from typing import List, Optional
 from requests_cache import CachedSession
 
-url = "http://www.epta.eu.org/epndb"
+Array = np.ndarray
+One = lambda _: _[0]
+Quantity = u.unyt_quantity
+URL = "http://www.epta.eu.org/epndb"
 
-session = CachedSession(
+Session = CachedSession(
     "epndb",
     use_cache_dir=True,
     cache_control=True,
@@ -25,65 +26,37 @@ session = CachedSession(
 )
 
 
-def get_links(tag: Tag):
-    links = []
-    atags = tag("a")
-    for atag in atags:
-        link = atag["href"]
-        link = f"{url}/ascii/{link}"
-        link = link.replace("#", "")
-        link = link.replace(".ar", ".txt")
-        link = link.replace(".epn", ".txt")
-        links.append(link)
-    return links
-
-
-@define
+@attrs.define
 class Profile:
 
     """
     Represents a pulsar's profile in the EPN's Database of Pulsar Profiles.
     """
 
-    _freq: str
-    _poln: str
-    _refn: str
-    _link: str
-
-    @property
-    def freq(self):
-        return u.unyt_quantity.from_string(self._freq)
-
-    @property
-    def poln(self):
-        return self._poln
-
-    @property
-    def refn(self):
-        return self._refn
-
-    @property
-    def link(self):
-        return self._link
+    ref: str
+    stokes: str
+    fileurl: str
+    freq: Quantity
 
 
-@define
+@attrs.define
 class Pulsar:
 
     """
     Represents a pulsar in the EPN's Database of Pulsar Profiles.
     """
 
+    name: str
     jname: str
     bname: str
     nprof: int
-    profiles: List[Profile]
+    profs: List[Profile]
 
     def profile(
         self,
         freq: float,
-        poln: str = "I",
-    ):
+        stokes: str = "I",
+    ) -> Optional[Array]:
 
         """
         Obtain this pulsar's profile from the EPN's Database of Pulsar Profiles.
@@ -94,42 +67,32 @@ class Pulsar:
         poln = 'IQ' will return both Stokes' I and Q as separate Numpy arrays.
         """
 
-        class POLN(Enum):
-            I = 1
-            Q = 2
-            U = 3
-            V = 4
+        if freq < 0.0:
+            raise ValueError("Frequency cannot be negative.")
 
-        for profile in self.profiles:
+        if len(stokes) > 4:
+            raise ValueError("There are only 4 Stokes' parameters.")
+
+        for prof in self.profs:
             if math.isclose(
-                profile.freq,  # type: ignore
                 freq,
-                rel_tol=1e-2,
+                prof.freq,
+                rel_tol=1e-3,
             ):
-                response = session.get(profile.link)
-                if response.status_code == 404:
-
-                    # HACK: This is ensures that we can still get a profile from
-                    # the database, since some pulsars have their BNAME instead
-                    # of their JNAME in the links to their ASCII files. This can
-                    # be removed if corrections are made to the database itself.
-
-                    response = session.get(
-                        re.sub(
-                            re.escape(f"/{self.jname}/"),
-                            f"/{self.bname}/",
-                            profile.link,
-                        )
-                    )
-
-                    if response.status_code == 404:
-                        raise ValueError("No ASCII version for profile.")
-
-                cols = [POLN[_].value + 2 for _ in poln]
-                return np.loadtxt(response.text.split("\n"), usecols=cols)
+                page = Session.get(prof.fileurl)
+                if page.status_code == 404:
+                    regex = re.escape(f"/{self.jname}/")
+                    page = Session.get(re.sub(regex, f"/{self.bname}/", prof.fileurl))
+                    if page.status_code == 404:
+                        raise ValueError("No ASCII version for this profile.")
+                return np.loadtxt(
+                    page.text.split("\n"),
+                    unpack=True,
+                    usecols=[i + 3 for i, _ in enumerate(stokes)],
+                )
 
 
-@define
+@attrs.define
 class EPNDB:
 
     """
@@ -140,33 +103,42 @@ class EPNDB:
 
     @classmethod
     def get(cls):
-        page = session.get(f"{url}/list.php")
-        soup = BeautifulSoup(page.content, "lxml")
 
-        rxI = re.compile(
-            r"""
-            (?P<JNAME>[J][0-9]{2,4}[+-][0-9]{2,4}[A-Z]?)\s*
-            (\((?P<BNAME>[B][0-9]{2,4}[+-][0-9]{2,4}[A-Z]?)\))?\s*
-            \[(?P<NPROF>[0-9]+)\]\s*
-            """,
-            re.VERBOSE,
-        )
+        """
+        Scrap the database.
+        """
 
-        rxII = re.compile(
-            r"""
-            (?P<FREQ>[0-9]+[.][0-9]+\s*?MHz|GHz)[,]\s*
-            (?P<POLN>[IQUV])\s*
-            \[(?P<REFN>[a-z]+[+]?[0-9]+)\]
-            """,
-            re.VERBOSE,
-        )
+        page = Session.get(f"{URL}/list.php")
+        parsed = BeautifulSoup(page.content, "lxml")
+
+        tags = One(parsed.find_all("ul"))
+        tags = tags.find_all("li", recursive=False)
+
+        def get_links(tag):
+            links = []
+            atags = tag("a")
+            for atag in atags:
+                link = atag["href"]
+                link = f"{URL}/ascii/{link}"
+                link = link.replace("#", "")
+                link = link.replace(".ar", ".txt")
+                link = link.replace(".epn", ".txt")
+                links.append(link)
+            return links
 
         pulsars = []
-        tags = soup("ul")[0]("li", recursive=False)
         for tag in tags:
-            matches = re.search(rxI, tag.text)
-            if matches is not None:
-                values = matches.groupdict()
+            matched = re.search(
+                r"""
+                (?P<JNAME>[J][0-9]{2,4}[+-][0-9]{2,4}[A-Z]?)\s*
+                (\((?P<BNAME>[B][0-9]{2,4}[+-][0-9]{2,4}[A-Z]?)\))?\s*
+                \[(?P<NPROF>[0-9]+)\]\s*
+                """,
+                tag.text,
+                re.VERBOSE,
+            )
+            if matched is not None:
+                values = matched.groupdict()
                 jname = values["JNAME"]
                 nprof = values["NPROF"]
                 bname = values.get("BNAME", "")
@@ -174,20 +146,29 @@ class EPNDB:
                 continue
             pulsars.append(
                 Pulsar(
-                    jname,
-                    bname,
-                    int(nprof),
-                    [
+                    name=jname,
+                    jname=jname,
+                    bname=bname,
+                    nprof=int(nprof),
+                    profs=[
                         Profile(
-                            freq,
-                            poln,
-                            refn,
-                            link,
+                            ref=ref,
+                            stokes=stokes,
+                            fileurl=link,
+                            freq=Quantity.from_string(freq),  # type: ignore
                         )
-                        for (
-                            (freq, poln, refn),
-                            link,
-                        ) in zip(re.findall(rxII, tag.text), get_links(tag))
+                        for ((freq, stokes, ref), link,) in zip(
+                            re.findall(
+                                r"""
+                                ([0-9]+[.][0-9]+\s*?MHz|GHz)[,]\s*
+                                ([IQUV])\s*
+                                \[([a-z]+[+]?[0-9]+)\]
+                                """,
+                                tag.text,
+                                re.VERBOSE,
+                            ),
+                            get_links(tag),
+                        )
                     ],
                 )
             )
