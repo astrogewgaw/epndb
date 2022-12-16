@@ -15,10 +15,6 @@ console = Console()
 URL = "http://www.epta.eu.org/epndb"
 
 
-class EPNDBError(Exception):
-    pass
-
-
 def getdb() -> List[Dict]:
 
     """
@@ -45,7 +41,7 @@ def getdb() -> List[Dict]:
         page = requests.get(f"{URL}/list.php")
         code = page.status_code
         if code != 200:
-            raise EPNDBError(f"Cannot connect to database. ERROR CODE: {code}.")
+            raise ValueError(f"Cannot connect to database. ERROR CODE: {code}.")
 
     soup = bs4.BeautifulSoup(page.content, "lxml")
     tags = one(soup.find_all("ul")).find_all("li", recursive=False)

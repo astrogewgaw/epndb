@@ -2,6 +2,9 @@
 epndb: Pythonic interface to the EPN's Database of Pulsar Profiles.
 """
 
+import requests
+import numpy as np
+
 from pathlib import Path
 from epndb.utils import getdb
 from rich.progress import track
@@ -12,15 +15,16 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import select, create_engine
 from sqlmodel import Field, Session, SQLModel, Relationship
 
+
+Array = np.ndarray
+console = Console()
+
 BASEDIR = Path(__file__).parent.resolve()
 
 DBNAME = "epn"
 DATADIR = BASEDIR / "data"
 DBPATH = DATADIR / f"{DBNAME}.db"
 ENGINE = create_engine(f"sqlite:///{DBPATH}", echo=False)
-
-
-console = Console()
 
 
 def version() -> str:
@@ -70,6 +74,58 @@ class Pulsar(SQLModel, table=True):
             statement = statement.options(selectinload(cls.profiles))
             result = session.exec(statement)
             return result.one()
+
+    def profile(
+        self,
+        freq: float,
+        stokes: str = "I",
+    ) -> Optional[Array]:
+
+        """
+        Obtain this pulsar's profile from the EPN's Database of Pulsar Profiles.
+        Returns the profile as a Numpy array for a particular frequency, freq,
+        and Stokes' parameter, stokes.
+
+        NOTE:
+
+            1. The default for the latter is Stokes' I. One can obtain profiles
+            for multiple Stokes' parameters; for example, stokes = "IQ" will
+            return both Stokes' I and Q as separate Numpy arrays.
+
+            2. The value of the frequency does not have to be exact; as long as
+            the value provided by the user is within 5 MHz of the actual value,
+            this method will try to return the corresponding profile. This value
+            is arbitrary.
+        """
+
+        if freq < 0.0:
+            raise ValueError("Frequency cannot be negative.")
+
+        if len(stokes) > 4:
+            raise ValueError("There are only 4 Stokes' parameters.")
+
+        for profile in self.profiles:
+
+            if np.abs(freq - profile.freq) > 5:
+                raise ValueError(f"No profile for {freq} ± 5 MHz.")
+
+            link = profile.url
+            page = requests.get(link)
+            code = page.status_code
+            if code != 200:
+                link = link.replace(f"/{self.jname}/", f"/{self.bname}/")
+            page = requests.get(link)
+            code = page.status_code
+            if code != 200:
+                raise ValueError(f"Cannot connect to database. ERROR CODE: {code}.")
+
+            text = page.text
+            data = text.split("\n")
+            return np.loadtxt(
+                data,
+                unpack=True,
+                usecols=[i + 3 for i, _ in enumerate(stokes)],
+            )
 
 
 def init() -> None:
