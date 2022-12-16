@@ -96,7 +96,3 @@ def getdb() -> List[Dict]:
             }
         )
     return pulsars
-
-
-def getprof():
-    pass
