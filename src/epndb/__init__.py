@@ -1,3 +1,12 @@
-from epndb.core import EPNDB
+from rich.traceback import install
+from epndb.core import init, version
+from epndb.core import Pulsar, Profile
 
-__all__ = ["EPNDB"]
+init()
+install()
+
+__all__ = [
+    "version",
+    "Pulsar",
+    "Profile",
+]
