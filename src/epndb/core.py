@@ -51,6 +51,45 @@ class Profile(SQLModel, table=True):
     pulsar: Optional["Pulsar"] = Relationship(back_populates="profiles")
     pulsar_id: Optional[int] = Field(default=None, foreign_key="pulsar.id")
 
+    def __str__(self) -> str:
+        return f"<Profile for PSR {self.pulsar.name} at 𝜈 = {self.freq} MHz."
+
+    def __repr__(self) -> str:
+        return str(self)
+
+    def get(
+        self,
+        stokes: str = "I",
+    ) -> Array:
+
+        """
+        Obtain this profile from the EPN's Database of Pulsar Profiles. Returns
+        the profile as a Numpy array for the specified Stokes' parameter(s). The
+        default for the latter is Stokes' I. It is possible to get multiple
+        Stokes' parameters at once; for example, stokes = "IQ" will return both
+        Stokes' I and Q as separate Numpy arrays.
+        """
+
+        if self.pulsar is not None:
+            link = self.url
+            page = requests.get(link)
+            code = page.status_code
+            if code != 200:
+                link = link.replace(f"/{self.pulsar.jname}/", f"/{self.pulsar.bname}/")
+            page = requests.get(link)
+            code = page.status_code
+            if code != 200:
+                raise ValueError(f"Cannot connect to database. ERROR CODE: {code}.")
+            text = page.text
+            data = text.split("\n")
+            return np.loadtxt(
+                data,
+                unpack=True,
+                usecols=[i + 3 for i, _ in enumerate(stokes)],
+            )
+        else:
+            raise ValueError("Something is wrong with the database.")
+
     def info(self):
         display(
             title="Profile",
@@ -60,6 +99,9 @@ class Profile(SQLModel, table=True):
                 f"Refer to {self.citation}": "",
             },
         )
+
+    def plot(self):
+        pass
 
 
 class Pulsar(SQLModel, table=True):
@@ -76,14 +118,20 @@ class Pulsar(SQLModel, table=True):
     bname: Optional[str] = None
     profiles: List[Profile] = Relationship(back_populates="pulsar")
 
+    def __str__(self) -> str:
+        return f"PSR {self.name}, with {self.nprof} profiles."
+
+    def __repr__(self) -> str:
+        return str(self)
+
     @classmethod
     def get(cls, name: str):
         with Session(ENGINE) as session:
-            statement = select(cls)
-            statement = statement.where(cls.name == name)
-            statement = statement.options(selectinload(cls.profiles))
-            result = session.exec(statement)
-            return result.one()
+            return session.exec(
+                select(cls)
+                .where(cls.name == name)
+                .options(selectinload(cls.profiles).selectinload(Profile.pulsar))
+            ).one()
 
     def info(self):
         display(
@@ -100,59 +148,6 @@ class Pulsar(SQLModel, table=True):
                 ),
             },
         )
-
-    def getprof(
-        self,
-        freq: float,
-        stokes: str = "I",
-    ) -> Optional[Array]:
-
-        """
-        Obtain this pulsar's profile from the EPN's Database of Pulsar Profiles.
-        Returns the profile as a Numpy array for a particular frequency, freq,
-        and Stokes' parameter, stokes.
-
-        NOTE:
-
-            1. The default for the latter is Stokes' I. One can obtain profiles
-            for multiple Stokes' parameters; for example, stokes = "IQ" will
-            return both Stokes' I and Q as separate Numpy arrays.
-
-            2. The value of the frequency does not have to be exact; as long as
-            the value provided by the user is within 5 MHz of the actual value,
-            this method will try to return the corresponding profile. This value
-            is arbitrary.
-        """
-
-        if freq < 0.0:
-            raise ValueError("Frequency cannot be negative.")
-
-        if len(stokes) > 4:
-            raise ValueError("There are only 4 Stokes' parameters.")
-
-        for profile in self.profiles:
-
-            if np.abs(freq - profile.freq) > 5:
-                continue
-
-            link = profile.url
-            page = requests.get(link)
-            code = page.status_code
-            if code != 200:
-                link = link.replace(f"/{self.jname}/", f"/{self.bname}/")
-            page = requests.get(link)
-            code = page.status_code
-            if code != 200:
-                raise ValueError(f"Cannot connect to database. ERROR CODE: {code}.")
-            text = page.text
-            data = text.split("\n")
-            return np.loadtxt(
-                data,
-                unpack=True,
-                usecols=[i + 3 for i, _ in enumerate(stokes)],
-            )
-        else:
-            raise ValueError(f"No profile for {freq} ± 5 MHz.")
 
 
 def init() -> None:
