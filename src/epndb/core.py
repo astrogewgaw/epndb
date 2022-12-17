@@ -133,7 +133,7 @@ class Pulsar(SQLModel, table=True):
         for profile in self.profiles:
 
             if np.abs(freq - profile.freq) > 5:
-                raise ValueError(f"No profile for {freq} ± 5 MHz.")
+                continue
 
             link = profile.url
             page = requests.get(link)
@@ -151,6 +151,8 @@ class Pulsar(SQLModel, table=True):
                 unpack=True,
                 usecols=[i + 3 for i, _ in enumerate(stokes)],
             )
+        else:
+            raise ValueError(f"No profile for {freq} ± 5 MHz.")
 
 
 def init() -> None:
