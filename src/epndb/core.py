@@ -6,10 +6,10 @@ import requests
 import numpy as np
 
 from pathlib import Path
-from epndb.utils import getdb
 from rich.progress import track
 from rich.console import Console
 from typing import List, Optional
+from epndb.utils import getdb, display
 from epndb._version import __version__
 from sqlalchemy.orm import selectinload
 from sqlmodel import select, create_engine
@@ -51,6 +51,16 @@ class Profile(SQLModel, table=True):
     pulsar: Optional["Pulsar"] = Relationship(back_populates="profiles")
     pulsar_id: Optional[int] = Field(default=None, foreign_key="pulsar.id")
 
+    def info(self):
+        display(
+            title="Profile",
+            attrs={
+                "Frequency": f"{self.freq:.2f}",
+                "Stokes' Parameters": self.stokes,
+                f"Refer to {self.citation}": "",
+            },
+        )
+
 
 class Pulsar(SQLModel, table=True):
 
@@ -75,7 +85,23 @@ class Pulsar(SQLModel, table=True):
             result = session.exec(statement)
             return result.one()
 
-    def profile(
+    def info(self):
+        display(
+            title="Pulsar",
+            attrs={
+                "Name": self.name,
+                "Alternate name": self.bname,
+                "Number of profiles": f"{self.nprof}",
+                "Profiles": "\n".join(
+                    [
+                        f"{_.freq:.2f} MHz, {_.stokes} [{_.citation}]"
+                        for _ in self.profiles
+                    ]
+                ),
+            },
+        )
+
+    def getprof(
         self,
         freq: float,
         stokes: str = "I",
@@ -118,7 +144,6 @@ class Pulsar(SQLModel, table=True):
             code = page.status_code
             if code != 200:
                 raise ValueError(f"Cannot connect to database. ERROR CODE: {code}.")
-
             text = page.text
             data = text.split("\n")
             return np.loadtxt(

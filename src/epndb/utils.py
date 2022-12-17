@@ -6,6 +6,8 @@ import re
 import bs4
 import requests
 
+from rich.panel import Panel
+from rich.table import Table
 from typing import List, Dict
 from rich.progress import track
 from rich.console import Console
@@ -33,6 +35,7 @@ def getdb() -> List[Dict]:
         f"{URL}/ascii/{i['href']}".replace("#", "")
         .replace(".ar", ".txt")
         .replace(".epn", ".txt")
+        .replace(".T8ch", ".txt")
         .strip()
         for i in x.find_all("a")
     ]
@@ -92,3 +95,23 @@ def getdb() -> List[Dict]:
             }
         )
     return pulsars
+
+
+def display(title: str, attrs: Dict):
+
+    grid = Table.grid(expand=True, padding=(0, 2, 0, 2))
+
+    grid.add_column(justify="left")
+    grid.add_column(justify="right")
+
+    for key, value in attrs.items():
+        grid.add_row(f"[i]{key}[/i]", f"[b]{value}[/b]")
+
+    console.print(
+        Panel(
+            grid,
+            padding=2,
+            expand=False,
+            title=f"[b]{title}[/b]",
+        )
+    )
