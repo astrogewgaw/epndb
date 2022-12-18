@@ -1,3 +1,7 @@
+"""
+epndb: Pythonic interface to the EPN's Database of Pulsar Profiles.
+"""
+
 from rich.traceback import install
 from epndb.core import init, version
 from epndb.core import Pulsar, Profile

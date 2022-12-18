@@ -1,9 +1,10 @@
 """
-epndb: Pythonic interface to the EPN's Database of Pulsar Profiles.
+Core functionality for epndb.
 """
 
 import requests
 import numpy as np
+import proplot as pplt
 
 from pathlib import Path
 from rich.progress import track
@@ -52,7 +53,10 @@ class Profile(SQLModel, table=True):
     pulsar_id: Optional[int] = Field(default=None, foreign_key="pulsar.id")
 
     def __str__(self) -> str:
-        return f"<Profile for PSR {self.pulsar.name} at 𝜈 = {self.freq} MHz."
+        if self.pulsar is not None:
+            return f"Profile for PSR {self.pulsar.name} at 𝜈 = {self.freq} MHz."
+        else:
+            return f"Profile at 𝜈 = {self.freq} MHz."
 
     def __repr__(self) -> str:
         return str(self)
@@ -91,6 +95,11 @@ class Profile(SQLModel, table=True):
             raise ValueError("Something is wrong with the database.")
 
     def info(self):
+
+        """
+        Get this profile's information from the database.
+        """
+
         display(
             title="Profile",
             attrs={
@@ -100,7 +109,20 @@ class Profile(SQLModel, table=True):
             },
         )
 
-    def plot(self):
+    def plot(
+        self,
+        style: str = "-",
+        save: bool = False,
+        color: str = "black",
+        normalise: bool = True,
+        smoothen: bool = False,
+        path: Optional[str] = None,
+    ):
+
+        """
+        Plot this profile.
+        """
+
         pass
 
 
@@ -126,6 +148,11 @@ class Pulsar(SQLModel, table=True):
 
     @classmethod
     def get(cls, name: str):
+
+        """
+        Get a pulsar from the database.
+        """
+
         with Session(ENGINE) as session:
             return session.exec(
                 select(cls)
@@ -134,6 +161,11 @@ class Pulsar(SQLModel, table=True):
             ).one()
 
     def info(self):
+
+        """
+        Get this pulsar's information from the database.
+        """
+
         display(
             title="Pulsar",
             attrs={
@@ -148,6 +180,21 @@ class Pulsar(SQLModel, table=True):
                 ),
             },
         )
+
+    def plot_profiles(
+        self,
+        save: bool = False,
+        path: Optional[str] = None,
+        styles: Optional[List[str]] = None,
+        colors: Optional[List[str]] = None,
+        freqs: Optional[List[float]] = None,
+    ):
+
+        """
+        Plot the profiles for this pulsar.
+        """
+
+        pass
 
 
 def init() -> None:

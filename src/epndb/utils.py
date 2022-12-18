@@ -99,7 +99,14 @@ def getdb() -> List[Dict]:
 
 def display(title: str, attrs: Dict):
 
-    grid = Table.grid(expand=True, padding=(0, 2, 0, 2))
+    """
+    Display a dictionary's fields in a nicely formatted grid.
+    """
+
+    grid = Table.grid(
+        expand=True,
+        padding=(0, 2, 0, 2),
+    )
 
     grid.add_column(justify="left")
     grid.add_column(justify="right")
