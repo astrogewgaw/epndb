@@ -4,8 +4,9 @@ Core functionality for epndb.
 
 import requests
 import numpy as np
-import proplot as pplt
+import plotly.graph_objects as go
 
+from enum import Enum
 from pathlib import Path
 from rich.progress import track
 from rich.console import Console
@@ -35,6 +36,21 @@ def version() -> str:
     """
 
     return str(__version__)
+
+
+class Stokes(Enum):
+
+    """
+    Enumeration for Stokes parameters.
+    """
+
+    I = 0
+    Q = 1
+    U = 2
+    V = 3
+
+    def __repr__(self):
+        return "<%s.%s>" % (self.__class__.__name__, self._name_)
 
 
 class Profile(SQLModel, table=True):
@@ -68,10 +84,10 @@ class Profile(SQLModel, table=True):
 
         """
         Obtain this profile from the EPN's Database of Pulsar Profiles. Returns
-        the profile as a Numpy array for the specified Stokes' parameter(s). The
-        default for the latter is Stokes' I. It is possible to get multiple
-        Stokes' parameters at once; for example, stokes = "IQ" will return both
-        Stokes' I and Q as separate Numpy arrays.
+        the profile as a Numpy array for the specified Stokes parameter(s). The
+        default for the latter is Stokes I. It is possible to get multiple
+        Stokes parameters at once; for example, stokes = "IQ" will return both
+        Stokes I and Q as separate Numpy arrays.
         """
 
         if self.pulsar is not None:
@@ -84,13 +100,16 @@ class Profile(SQLModel, table=True):
             code = page.status_code
             if code != 200:
                 raise ValueError(f"Cannot connect to database. ERROR CODE: {code}.")
+
+            skip = 3
             text = page.text
-            data = text.split("\n")
-            return np.loadtxt(
-                data,
+            raw = text.split("\n")
+            data = np.loadtxt(
+                raw,
                 unpack=True,
-                usecols=[i + 3 for i, _ in enumerate(stokes)],
+                usecols=[Stokes[_].value + skip for _ in stokes],
             )
+            return data
         else:
             raise ValueError("Something is wrong with the database.")
 
@@ -104,26 +123,73 @@ class Profile(SQLModel, table=True):
             title="Profile",
             attrs={
                 "Frequency": f"{self.freq:.2f}",
-                "Stokes' Parameters": self.stokes,
+                "Stokes Parameters": self.stokes,
                 f"Refer to {self.citation}": "",
             },
         )
 
     def plot(
         self,
-        style: str = "-",
-        save: bool = False,
-        color: str = "black",
-        normalise: bool = True,
-        smoothen: bool = False,
-        path: Optional[str] = None,
-    ):
+        stokes: str = "I",
+        baseline: bool = True,
+        normalise: bool = False,
+    ) -> None:
 
         """
         Plot this profile.
         """
 
-        pass
+        fig = go.Figure()
+        data = self.get(stokes=stokes)
+        data = [data] if data.ndim == 1 else data
+        data = np.asarray(data)
+        for name, column in zip(stokes, data):
+            x = np.arange(column.size)
+            x -= column.argmax()
+            column /= column.max() if normalise else 1.0
+            column -= np.median(column) if baseline else 0.0
+            fig.add_trace(go.Scatter(x=x, y=column, name=name))
+        fig.update_traces(hovertemplate=None)
+
+        fig.update_layout(
+            font_size=20,
+            hovermode="x",
+            title=str(self),
+            font_color="white",
+            template="plotly_dark",
+            font_family="Spectral",
+            title_font_color="goldenrod",
+            title_font_family="Spectral SC",
+            hoverlabel=dict(
+                font_size=12,
+                bgcolor="black",
+                font_color="white",
+                font_family="Spectral",
+            ),
+            xaxis_title="Peak Offset",
+            yaxis_title="".join(
+                [
+                    ("Normalised " if normalise else ""),
+                    "Flux Density",
+                ]
+            ),
+        )
+
+        fig.show(
+            config=dict(
+                scrollZoom=True,
+                displaylogo=False,
+                displayModeBar=True,
+                toImageButtonOptions=dict(
+                    width=1000,
+                    height=1000,
+                    format="png",
+                    filename=f"{self.pulsar.name}.png"
+                    if self.pulsar is not None
+                    else "profile.png",
+                ),
+            )
+        )
 
 
 class Pulsar(SQLModel, table=True):
@@ -180,21 +246,6 @@ class Pulsar(SQLModel, table=True):
                 ),
             },
         )
-
-    def plot_profiles(
-        self,
-        save: bool = False,
-        path: Optional[str] = None,
-        styles: Optional[List[str]] = None,
-        colors: Optional[List[str]] = None,
-        freqs: Optional[List[float]] = None,
-    ):
-
-        """
-        Plot the profiles for this pulsar.
-        """
-
-        pass
 
 
 def init() -> None:

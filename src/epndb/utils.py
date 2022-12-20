@@ -36,6 +36,8 @@ def getdb() -> List[Dict]:
         .replace(".ar", ".txt")
         .replace(".epn", ".txt")
         .replace(".T8ch", ".txt")
+        .replace(".fits", ".txt")
+        .replace(".psrfits", ".txt")
         .strip()
         for i in x.find_all("a")
     ]
