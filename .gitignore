@@ -8,7 +8,6 @@ __pycache__
 .mypy_cache
 .pytest_cache
 .ipynb_checkpoints
-src/epndb/data/epn.db
 src/epndb/_version.py
 
 *.o
