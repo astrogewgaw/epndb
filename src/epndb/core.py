@@ -184,7 +184,7 @@ class Profile(SQLModel, table=True):
                     width=1000,
                     height=1000,
                     format="png",
-                    filename=f"{self.pulsar.name}.png"
+                    filename=f"{self.pulsar.name}"
                     if self.pulsar is not None
                     else "profile.png",
                 ),
