@@ -1,23 +1,17 @@
 """
-Utilities for epndb.
+Scrapers for epndb.
 """
 
 import re
-import bs4
 import requests
 
-from rich.panel import Panel
-from rich.table import Table
+from bs4 import BeautifulSoup
 from typing import List, Dict
 from rich.progress import track
-from rich.console import Console
+from epndb.consts import url, console
 
 
-console = Console()
-URL = "http://www.epta.eu.org/epndb"
-
-
-def getdb() -> List[Dict]:
+def get_db() -> List[Dict]:
 
     """
     Extract all relevant information from the EPN's Database of Pulsar Profiles.
@@ -32,7 +26,7 @@ def getdb() -> List[Dict]:
 
     one = lambda x: x[0]
     txt = lambda x: [
-        f"{URL}/ascii/{i['href']}".replace("#", "")
+        f"{url}/ascii/{i['href']}".replace("#", "")
         .replace(".ar", ".txt")
         .replace(".epn", ".txt")
         .replace(".T8ch", ".txt")
@@ -43,12 +37,12 @@ def getdb() -> List[Dict]:
     ]
 
     with console.status("Requesting..."):
-        page = requests.get(f"{URL}/list.php")
+        page = requests.get(f"{url}/list.php")
         code = page.status_code
         if code != 200:
             raise ValueError(f"Cannot connect to database. ERROR CODE: {code}.")
 
-    soup = bs4.BeautifulSoup(page.content, "lxml")
+    soup = BeautifulSoup(page.content, "lxml")
     tags = one(soup.find_all("ul")).find_all("li", recursive=False)
 
     pulsars = []
@@ -97,30 +91,3 @@ def getdb() -> List[Dict]:
             }
         )
     return pulsars
-
-
-def display(title: str, attrs: Dict):
-
-    """
-    Display a dictionary's fields in a nicely formatted grid.
-    """
-
-    grid = Table.grid(
-        expand=True,
-        padding=(0, 2, 0, 2),
-    )
-
-    grid.add_column(justify="left")
-    grid.add_column(justify="right")
-
-    for key, value in attrs.items():
-        grid.add_row(f"[i]{key}[/i]", f"[b]{value}[/b]")
-
-    console.print(
-        Panel(
-            grid,
-            padding=2,
-            expand=False,
-            title=f"[b]{title}[/b]",
-        )
-    )
