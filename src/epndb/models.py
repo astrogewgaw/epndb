@@ -172,11 +172,3 @@ class Pulsar(SQLModel, table=True):
                 ),
             },
         )
-
-    def plot(self) -> None:
-
-        """
-        Plot all profiles available for this pulsar.
-        """
-
-        pass
