@@ -68,10 +68,10 @@ class DB:
             get()
 
     @classmethod
-    def search(cls, name: str):
+    def get(cls, name: str):
 
         """
-        Search for pulsars in the database.
+        Get a pulsar from the database.
         """
 
         with Session(engine) as session:
@@ -79,4 +79,4 @@ class DB:
                 select(Pulsar)
                 .where(Pulsar.name == name)
                 .options(selectinload(Pulsar.profiles).selectinload(Profile.pulsar))
-            ).all()
+            ).one()
