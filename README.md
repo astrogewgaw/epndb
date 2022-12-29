@@ -38,7 +38,7 @@ pip install epndb
 
 ## Usage
 
-```ipython
+```python
 In [1]: from epndb import DB
 
 In [2]: psr = DB.get("J2144-3933")
