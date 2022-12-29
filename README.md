@@ -104,12 +104,11 @@ we recommend the following wording:
 
 ## Thanks
 
-[**`epndb`**][epndb] would not have been possible without the EPN's Database of
-Pulsar Profiles. This database would not have come into place without Duncan
-Lorimer, the original creator, and Michael Keith, the current developer and
-maintainer of the database. It would also have not been possible without the
-many generous authors who supplied the database with the profiles of so many,
-many pulsars.
+[**`epndb`**][epndb] owes everything to the EPN's Database of Pulsar Profiles.
+This database would not have been possible without Duncan Lorimer, the original
+creator of the database, Michael Keith, the current developer and maintainer of
+the database, and the many, many generous authors who supplied the database with
+the profiles themselves.
 
 </div>
 
