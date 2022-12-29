@@ -1,10 +1,9 @@
 <div style="font-family:JetBrainsMono Nerd Font">
-<div align="center">
-<img
-    alt="The epndb Logo"
-    src=""
-/>
-</div>
+
+![License][license-badge]
+[![Gitmoji][gitmoji-badge]][gitmoji]
+[![Code style: black][black-badge]][black]
+[![Interrogate][interrogate-badge]][interrogate]
 
 <div align="justify">
 
@@ -117,6 +116,13 @@ many pulsars.
 </div>
 
 [numpy]: https://numpy.org
+[gitmoji]: https://gitmoji.dev
 [plotly]: https://plotly.com/python
+[black]: https://github.com/psf/black
 [epnweb]: http://www.epta.eu.org/epndb
+[interrogate-badge]: assets/docs_cov.svg
 [epndb]: https://github.com/astrogewgaw/epndb
+[interrogate]: https://github.com/econchick/interrogate
+[license-badge]: https://img.shields.io/github/license/astrogewgaw/epndb?style=for-the-badge
+[black-badge]: https://img.shields.io/badge/code%20style-black-000000.svg?style=for-the-badge
+[gitmoji-badge]: https://img.shields.io/badge/gitmoji-%20😜%20😍-FFDD67.svg?style=for-the-badge
