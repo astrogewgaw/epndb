@@ -18,22 +18,38 @@ Michael Keith recreated a modern version of the database, which is now housed
 database, allowing for many of the same features as the original database, while
 also adding new ones. Some of these features are:
 
-- Search for a pulsar(s) in the database,
-- Get info about a pulsar's profiles,
-- Get a profile as a [`numpy`][numpy] array,
-- Plot, and interact with, a profile (via [`plotly`][plotly]),
-- Save a profile in various formats, such as:
-  - HDF5,
-  - JSON,
-  - ASCII,
-  - PSRFITS, etc.
+- [x] Search for a pulsar in the database, by name.
+- [ ] Search for pulsar(s) via wildcards (e.g. _"J21\*"_).
+- [x] Get info about a pulsar's profiles.
+- [x] Get a profile as a [`numpy`][numpy] array.
+- [ ] Search for a profile by frequency, or by reference.
+- [x] Plot, and interact with, a profile (via [`plotly`][plotly]).
+- [ ] Get appropriate reference(s) for each profile.
+- [ ] Get appropriate licensing info for each profile.
+- [ ] Search the database by reference(s).
+- [ ] Save a profile in various formats, such as:
+  - [ ] HDF5,
+  - [ ] JSON,
+  - [ ] ASCII,
+  - [ ] PSRFITS etc.
+
+This project is still in a nascent stage, so all features haven't matured yet,
+some might get removed later on, and many others might get added. If there is a
+feature that would like that hasn't made it to the list above, let me know!
 
 ## Install
 
-Installation is as simple as:
+Installation will soon be as simple as:
 
 ```bash
 pip install epndb
+```
+
+as soon as the project makes it to PyPI. For now, you can clone the Github
+repository, and from the root directory, run:
+
+```bash
+pip install .
 ```
 
 ## Usage
